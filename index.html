@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Sesini Duyan Var Mı?</title>
+  <style>
+    html, body {
+      margin:0; padding:0;
+      width:100%; height:100%;
+      background: #111;
+      overflow: hidden;
+      cursor: pointer;
+    }
+    #intro {
+      position: absolute; top:50%; left:50%;
+      transform: translate(-50%,-50%);
+      max-width:800px; padding:0 1rem;
+      font-family: sans-serif; font-size:1.3rem;
+      color:#fff; text-align:center;
+      opacity:0; transition:opacity .8s ease;
+      z-index:5;
+    }
+    #overlay {
+      position:fixed; top:0; left:0;
+      width:100%; height:100%;
+      background:#000; opacity:0;
+      transition:opacity 1s ease;
+      z-index:10; pointer-events:none;
+    }
+    /* --- Hikâye bölümü gizli başlar --- */
+    #story-container {
+      position:absolute; top:0; left:0;
+      width:100%; height:100%;
+      display:flex; flex-direction:column;
+      align-items:center; justify-content:center;
+      padding:2rem;
+      box-sizing:border-box;
+      opacity:0; pointer-events:none;
+      transition: opacity .8s ease;
+    }
+    #scene-title {
+      max-width: 700px;
+      font-size: 2.5rem;
+      text-transform: uppercase;
+      margin-bottom: 1rem;
+      color: #fff;
+      font-family: sans-serif;
+    }
+    #story {
+      max-width:700px; color:#fff;
+      font-family:sans-serif; font-size:1.2rem;
+      text-align: justify; margin-bottom:1.5rem;
+    }
+    #choices {
+      display:flex; flex-direction:column; gap:.5rem;
+    }
+    .choice-button {
+      background:#333; border:none;
+      color:#fff; padding:.7rem 1.5rem;
+      font-size:1rem; border-radius:6px;
+      cursor:pointer;
+    }
+    .choice-button:hover { background:#555; }
+  </style>
+</head>
+<body>
+
+  <!-- Intro metinleri -->
+  <div id="intro"></div>
+  <!-- Siyah overlay -->
+  <div id="overlay"></div>
+  <!-- Hikâye container -->
+  <div id="story-container">
+    <h1 id="scene-title"></h1>
+    <div id="story"></div>
+    <div id="choices"></div>
+  </div>
+
+  <!-- Ses dosyaları -->
+  <audio id="deprem" src="deprem.mp3"></audio>
+  <audio id="sela" src="sela.mp3"></audio>
+
+  <script>
+    // --- Sahne tanımları ---
+    const scenes = {
+      scene1: {
+        text: "Karanlıktasın. Önce soğuğu, sonra vücudunun çeşitli yerlerindeki ağrıları hissediyorsun. Eşine döndüğünde açık gözüyle sana bakmakta olduğunu görüyorsun. Üstünüze eğilmiş tavan, yatak odanıza ait değil.",
+        choices: [
+          { text: "Eşini kontrol et.",   next: "scene2" },
+          { text: "Çocuklarına seslen.",  next: "scene3" },
+          { text: "Hareket etmeyi dene.", next: "scene4" }
+        ],
+        sela: false, is_end: false
+      },
+      scene2: {
+        text: "Eşini yokladığında nihayet gözlerini kırpıyor ve garip bir ses çıkarıyor. Belden aşağı sıkışmış. Şokta.",
+        choices: [
+          { text:"Çocuklarına seslen.", next:"scene3" },
+          { text:"Hareket etmeyi dene.", next:"scene4" }
+        ],
+        sela:false, is_end:false
+      },
+      scene3: {
+        text: "Üç çocuğundan da karşılık gelmiyor. Hiçbir ses yok. Tüm şehir büyük bir gürültüyle sessizliğe gömülmüş.",
+        choices: [
+          { text: "Eşini kontrol et.",   next: "scene2" },
+          { text: "Hareket etmeyi dene.", next: "scene4" }
+        ], sela:false, is_end:false
+      },
+      scene4: {
+        text: "Kıpırdandığın zaman uzuvlarının tümünü hareket ettirebildiğini görüyorsun. Hatta bulunduğun yerde sürünerek ilerleyebilecek vaziyettesin. Öksürüyorsun. Her yer yıkılmış betonların tozlarıyla kaplı. Kalıntıların arasında Gözde'yi görüyorsun. Titreyerek ağlıyor. Aranızda biriken enkazdan dolayı yanına geçemiyorsun. Tek yapabildiğin uzanıp, dokunmak.",
+        choices: [
+          { text: "Etrafında neler olduğuna bak.",   next: "scene5" },
+          { text: "Çocuklarına seslen.", next: "scene6" },
+          { text: "Dışarıya seslen.", next: "scene7" }
+        ], sela:false, is_end:false
+      },
+      scene5: {
+        text: "Yatağınızda yatmadığınızı o zaman fark ediyorsun. Eşin de sen de beton levhaların üzerindesiniz. Telefon yatağın yanındaydı. Oraya doğru sürünürken denk geldiğin, içinde çakmağının olduğu sigara paketini cebine koyuyorsun. Komodini kurcaladığında yalnızca vazelin buluyorsun. Telefon yatağın altından çıkıyor.",
+        choices: [
+          { text: "Tozdan korunmak için yüzünü ört.",   next: "scene8" },
+          { text: "Arama yapmayı dene.", next: "scene9" },
+          { text: "Çocuklarına seslen.", next: "scene6" },
+          { text: "Dışarıya seslen.", next: "scene7" }
+        ], sela:false, is_end:false
+      },
+      scene8: {
+        text: "Yanına aldığın yatak örtüsünün orta kısımlarının hâlâ nispeten temiz olduğunu görüyorsun. Yırtıp, kendine, eşine ve Gözde'ye tozdan koruması için maske yapıyorsun.",
+        choices: [
+          { text: "Arama yapmayı dene.", next: "scene9" },
+          { text: "Çocuklarına seslen.", next: "scene6" },
+          { text: "Dışarıya seslen.", next: "scene7" }
+        ], sela:false, is_end:false
+      },
+      scene9: {
+        text: "Arama yapmayı denediğinde kendiliğinden sonlanıyor. Sinyal yok. Öksürmeye başlıyorsun.",
+        choices: [
+          { text: "Tozdan korunmak için yüzünü ört.",   next: "scene8" },
+          { text: "Çocuklarına seslen.", next: "scene6" },
+          { text: "Dışarıya seslen.", next: "scene7" }
+        ], sela:false, is_end:false
+      },
+      scene6: {
+        text: "Diğer iki çocuğundan yanıt gelmiyor.",
+        choices: [
+          { text: "Dışarıya seslen.", next: "scene7" },
+          { text: "Gözde'nin yanında kal.", next: "scene10" }
+        ], sela:false, is_end:false
+      },
+      scene7: {
+        text: "\"Sesimi duyan var mı?\" Hayır. Sesini kimse duymuyor.",
+        choices: [
+          { text: "Dışarıya seslen.", next: "scene11" },
+          { text: "Gözde'nin yanında kal.", next: "scene10" }
+        ], sela:false, is_end:false
+      },
+      scene10: {
+        text: "Gözde'nin elini tutup, yanında beklemeye başlıyorsun. Karnınız aç. Eşin vazelini yemeyi öneriyor. Üşüyorsunuz.",
+        choices: [
+          { text: "Vazelini açıp, ailenle birlikte ye.", next: "scene13" },
+          { text: "Çakmakla etrafına bakın.", next: "scene12" },
+          { text: "Dışarıya seslen.", next: "scene11" }
+        ], sela:false, is_end:false
+      },
+      scene12: {
+        text: "Çakmağı çakmak üzereyken eşin seni durduruyor. Enkaz altında çakmak çakmamalısın. Patlama riski yüksek. Aynı zamanda ateş, ortamdaki kısıtlı oksijeni de tüketecektir.",
+        choices: [
+          { text: "Vazelini açıp, ailenle birlikte ye.", next: "scene13" },
+          { text: "Dışarıya seslen.", next: "scene11" }
+        ], sela:false, is_end:false
+      },
+      scene11: {
+        text: "\"Sesimi duyan var mı?\" Hâlâ kimse yok. Başını tutan ipler birden bırakılmış gibi aniden gücünü yitiriyor, olduğun yerde kendinden geçiyorsun. Tekrar kendine geldiğinde eşinin gözlerini kapalı buluyorsun. Seslendiğinde cevap vermiyor. Gözde'yi sarsıyorsun. Uyanmıyor. İş makinesi sesleri geliyor, boğuk. İnsan gürültüleri duyuyorsun. Ama çok uzaktalar.",
+        choices: [
+          { text: "Eşinin yanına git ve uyandırmayı dene.", next: "scene14" },
+          { text: "Dışarıya seslen.", next: "scene15" }
+        ], sela:false, is_end:false
+      },
+      scene15: {
+        text: "Sesleniyorsun. Yanıt gelmiyor. Seslendikçe gücün azalıyor. Tekrar kendinden geçiyorsun. Kısa bir süreliğine uyandığında çalışma seslerinin çok daha yakında olduğunu fark ediyorsun.",
+        choices: [
+          { text: "Dışarıya seslen.", next: "scene17" }
+        ], sela:false, is_end:false
+      },
+      //--- Kutlu Ailesi Son ---
+      scene17: {
+        text: "Seslenmek istiyorsun ama gücün yok. Sesin de kısılmış. Öksürüyorsun. Her yerin karıncalanıyor. Yattığın yerde yükseldiğini hissediyorsun. Gözlerin kararıyor.",
+        choices: [{ text: "Devam...", next: "scene27" }
+        ], sela:false, is_end:false
+      //--- Kutlu Ailesi Son ---
+      },
+      scene14: {
+        text: "Eşinin yanına gidiyorsun. Dürtüklediğinde, kurumuş dudaklarının arasından inliyor.",
+        choices: [
+          { text: "Vazelini açıp, eşinle birlikte ye", next: "scene18" },
+          { text: "Dışarıya seslen.", next: "scene19" }
+        ], sela:false, is_end:false
+      },
+      scene18: {
+        text: "Vazelini yiyorsunuz. Bunun bir faydası da zararı da yok. Fakat gücünü topladığını hissettiriyor. Zaman geçiyor. Sesler azalıyor. Sizi burada mı bıraktılar? Eşin bir demir parçasını etrafa vurarak ses çıkarmaya çalışıyor.",
+        choices: [
+          { text: "Etrafı kurcala.", next: "scene20" },
+          { text: "Geri dönmelerini bekle.", next: "scene21" }
+        ], sela:false, is_end:false
+      },
+      //--- Polat Çifti Son ---
+      scene20: {
+        text: "Sela okunuyor. Sıkıştığınız alanda içine çiçek ekilmiş bir kova dışında bir şey bulamıyorsun. Bir süre onları yiyerek açlığınızı bastırmaya çalışıyorsunuz. Hayatının önceki dönemi hiç yaşanmamış gibi hissediyorsun. Sanki hep bu enkazın altındaydınız. Çok uzun zaman sonra sesler tekrar beliriyor. Eşin çiçeklerin toprağını döküp, boş kovaya vurmaya sen de bağırmaya başlıyorsun. İyice yaklaşıyorlar. Sessiz olunmasının söylendiğini duyunca siz de bekliyorsunuz. \"Sesimi duyan var mı?\" diyor biri. Çok yakında. Karşılık veriyorsunuz. Betonların açılmaya başladığını işitiyorsunuz. Saatler sonra güneş ışığı yüzünüze çarpıyor. Koruyucu kıyafetleri içinde bir grup adam sizi çıkartıyor. Üç çocuğunuzun enkazın altında olduğunu söylüyorsunuz. Siz hastaneye giderken, onları aramaya başlıyorlar. Gözde yaşıyor muydu diye merak ediyorsun. Onu uyandırmak için yeterince uğraşmadın belki de. Belki ötekiler de yaşıyordu. Belki enkazın bir yerinde, yeterince çabalasaydın onlara giden bir geçit bulacaktın. Çocuklarını yüz üstü bıraktığın hissini üzerinde atamıyorsun, yapabileceğin hiçbir şey olmasa da.",
+        choices: [{ text: "Devam...", next: "scene28" }
+        ], sela:true, is_end:false
+      },
+      //--- Polat Çifti Son ---
+
+      //--- Kutlu Ailesi Son ---
+      scene21: {
+        text: "Sela okunuyor. Hayatının önceki dönemi hiç yaşanmamış gibi hissediyorsun. Sanki hep bu enkazın altındaydınız. Çok uzun zaman sonra sesler tekrar beliriyor. Bağırıyorsunuz. İyice yaklaşıyorlar. Sessiz olunmasının söylendiğini duyunca siz de bekliyorsunuz. \"Sesimi duyan var mı?\" diyor biri. Çok yakında. Karşılık veriyorsunuz. Sizi duydular mı? Bağırmaya devam ediyorsunuz. Yukarıda da sessizlik devam ediyor. Artık gücünüz kalmadığında çok uzun zamandır bağırdığınızı, yukarıdakilerin ise çoktan gittiğini fark ediyorsun. Tekrar gelecekler. Soğukta, uzuvların hissizleşiyor. Sesin çıkmıyor. Isınmak için eşine sarılıyorsun. Günler sonra kepçelerle geldiklerinde sizi bu şekilde buluyorlar.",
+        choices: [{ text: "Devam...", next: "scene27" }
+        ], sela:true, is_end:false,
+      },
+      //--- Kutlu Ailesi Son ---
+
+      scene13: {
+        text: "Vazelini açıp önce Gözde'ye, sonra eşine veriyorsun. Tadı güzel değil. Bir faydası da zararı da yok. Fakat gücünü topladığını hissettiriyor. İş makinesi sesleri geliyor, boğuk. İnsan gürültüleri duyuyorsun. Ama çok uzaktalar.",
+        choices: [
+          { text: "Etrafı kurcala.", next: "scene22" },
+          { text: "Dışarıya seslen.", next: "scene23" }
+        ], sela:false, is_end:false
+      },
+      scene23: {
+        text: "Dışarıya sesleniyorsun. Dışarısı sana sela ile yanıt veriyor. Eşin bir demir parçasını etrafa vurarak ses çıkarmaya çalışıyor. Zaman geçiyor. Sesler azalıyor. Sizi burada mı bıraktılar? Boğazın ağrıyor. Ara ara durup, Gözde'yi yokluyorsun. Buz kesmiş halde. Eşin ağlamaya başlıyor. Sesler kesiliyor.",
+        choices: [
+          { text: "Etrafı kurcala.", next: "scene22" },
+          { text: "Geri dönmelerini bekle.", next: "scene24" }
+        ], sela:true, is_end:false
+      },
+
+      //--- Kutlu Ailesi Son ---
+      scene24: {
+        text: "Hayatının önceki dönemi hiç yaşanmamış gibi hissediyorsun. Sanki hep bu enkazın altındaydınız. Çok uzun zaman sonra sesler tekrar beliriyor. Bağırıyorsunuz. İyice yaklaşıyorlar. Sessiz olunmasının söylendiğini duyunca siz de bekliyorsunuz. \"Sesimi duyan var mı?\" diyor biri. Çok yakında. Karşılık veriyorsunuz. Sizi duydular mı? Bağırmaya devam ediyorsunuz. Yukarıda da sessizlik devam ediyor. Artık gücünüz kalmadığında çok uzun zamandır bağırdığınızı, yukarıdakilerin ise çoktan gittiğini fark ediyorsun. Tekrar gelecekler. Soğukta, uzuvların hissizleşiyor. Sesin çıkmıyor. Elini enkazın içinden Gözde'ye uzatıyorsun. Onun hayatta olduğunu bilerek bekliyorsun. Günler sonra kepçelerle geldiklerinde sizi bu şekilde buluyorlar.",
+        choices: [{ text: "Devam...", next: "scene27" }
+        ], sela:false, is_end:false
+      },
+      //--- Kutlu Ailesi Son ---
+
+      scene22: {
+        text: "Sıkıştığınız alanda içine çiçek ekilmiş bir kova dışında bir şey bulamıyorsun. Bir süre onları yiyerek açlığınızı bastırmaya çalışıyorsunuz. Yatağın üzerindeki çarşafı Gözde'ye verip, üzerini iyice örtmesini söylüyorsun. Hayatının önceki dönemi hiç yaşanmamış gibi hissediyorsun. Sanki hep bu enkazın altındaydınız. Çok uzun zaman sonra sesler tekrar beliriyor. Eşin çiçeklerin toprağını döküp, boş kovaya vurmaya sen de bağırmaya başlıyorsun. İyice yaklaşıyorlar. Sessiz olunmasının söylendiğini duyunca siz de bekliyorsunuz. \"Sesimi duyan var mı?\" diyor biri. Çok yakında. Karşılık veriyorsunuz. Betonların açılmaya başladığını işitiyorsunuz. Saatler sonra güneş ışığı yüzünüze çarpıyor. Koruyucu kıyafetleri içinde bir grup adam sizi çıkartıyor. Üç çocuğunuzun enkazın altında olduğunu söylüyorsunuz. Siz hastaneye giderken, onları aramaya başlıyorlar.",
+        choices: [{ text: "Devam...", next: "scene25" }
+        ], sela:true, is_end:false
+      },
+      scene25: {
+        text: "Gözde dışındakilerin öldüğü haberini alıyorsun. Gözde ise kayıp. Bir komşun sana ulaşıp, bir teğmenin onu hastaneye götürdüğünü söylüyor. Teğmenle görüştüğünde, kendisinin hastanede bayıldığını ve sonrasında Gözde'yi görmediğini öğreniyorsun.",
+        choices: [{ text: "Devam...", next: "scene26" }
+        ], sela:false, is_end:false
+      },
+      //--- Nurgül Karamert Son ---
+      scene26: {
+        text: "Yılların onu arayarak geçiyor. Aslında yaşadığından kesinlikle emin değilsin. Mezarlarda ona dair bir iz çıkmıyor. Kitap yazıyorsun. Haberlere çıkıyorsun. Bir albayın onu aldığına dair bir telefon geliyor. Eski tanıdıkların Gözde'yi okulda gördüklerini haber veriyor. Öğretmenler doğrulasa da, kayıtlarda bulunamıyor. Hayatının kalanını, tek başına Gözde'yi arayarak geçiriyorsun.",
+        choices: [{ text: "Devam...", next: "scene29" }
+        ], sela:false, is_end:false
+      },
+      //--- Nurgül Karamert Son ---
+
+      scene27: {
+        title: "Kutlu Ailesi",
+        text: "Adıyaman’daki Bozbey Apartmanının enkazında 5 aile üyesi kaldı; Baba Zeynel Kutlu, anne Nimet Kutlu, çocukları Meryem Büşra (27), Gültekin (26) ve Mehmet Metin (20) İki büyük kardeş doktor, en küçükleri ise tıp fakültesi öğrencisiydi. Kedileri Boncuk, Büşra'nın kucağında, aileyle aynı kaderi paylaştı. Gültekin annesine sarılmış halde bulundu. \n\nDepreme hazır değilsiniz.",
+        choices: [], sela:false, is_end:true
+      },
+      scene28: {
+        title: "Polat Çifti",
+        text: "Muharrem ve Hidayet Polat çiftine depremin 202'nci saatinde ulaşıldı. 2 çocuğunu kaybeden çiftin 6 aylık bebeği Muhammet Alparslan depremin 5'inci gününe kadar dayanabildi. \n\nDepreme hazır değilsiniz.",
+        choices: [], sela:false, is_end:true
+      },
+      scene29: {
+        title: "Nurgül Karamert",
+        text: "19 Ağustos 1999 depreminde, enkazdan 12. saatte kurtarılan Nurgül Karamert'in kızı Gözde, o tarihten bari kayıp. Gözde'yi tek başına ağlarken bulan bir teğmen, hastaneye giderken onu yanında götürüyor. Teğmen burada bayıldıktan sonra Gözde kayboluyor. Uzun zaman sonra eski bir komşuları onu Tersane İlkokulunda gördüğü, konuşmak isteyince 19 yaşlarında bir kız ile erkek arabaya bindirip götürüyor. Öğretmenler tanısa da kaydı bulunmuyor. 10 yıl sonra bir TV programına çıktıktan sonra Nurgül Karamert bir telefon alıyor. Deprem zamanı Gölcük'te görev yapan bir albayın kız kardeşi, albayın bu tarife uyan Gözde adında bir kızı himayesine aldığını anlatıyor. Oğlu, kızı görmediğini ama babasının bir kızı aldığını söylüyor. Gürcistan'da hayatını kaybeden albayın ilk eşi ise yalanlıyor. Gözde hâlâ kayıp. \n\nDepreme hazır değilsiniz.",
+        choices: [], sela:false, is_end:true
+      }
+    };
+    let currentScene = "scene1";
+    let sceneCount = 0;
+    let waitingForEndClick = false;
+
+    // --- Intro metinleri ---
+    const texts = [
+      "6 Şubat depremlerinde 38 bin 901 bina deprem günü yıkıldı. 53 bin 537 insan bir gecede hayatını kaybetti. Bu sayı, İsrail'in Gazze'de düzenlediği planlı katliamların 14 Mayıs 2025 itibariyle ulaştığı açıklanan sayıdan (52 bin 928) daha fazla.",
+      "Bu interaktif haberde, vereceğiniz kararlarla gerçek depremzedelerin hikayelerine ulaşacak ve onlarla tanışacaksınız.",
+      "Depreme hazır mısınız?"
+    ];
+    let idx = 0;
+
+    const introEl      = document.getElementById("intro");
+    const overlay      = document.getElementById("overlay");
+    const depremAudio  = document.getElementById("deprem");
+    const storyCont    = document.getElementById("story-container");
+    const storyEl      = document.getElementById("story");
+    const choicesEl    = document.getElementById("choices");
+    const selaAudio    = document.getElementById("sela");
+
+    // Fade helper
+    function fadeIn(el, delay=50) {
+      el.style.opacity = 0;
+      setTimeout(() => el.style.opacity = 1, delay);
+    }
+    function fadeOut(el, dur=800) {
+      el.style.transition = `opacity ${dur/1000}s ease`;
+      el.style.opacity = 0;
+    }
+
+    // Intro başlat
+    window.onload = () => {
+      introEl.textContent = texts[0];
+      fadeIn(introEl);
+    };
+
+    // Intro tıklamaları
+    introEl.addEventListener("click", () => {
+      idx++;
+      if (idx < texts.length) {
+        // fade-out, sonra fade-in yeni metin
+        fadeOut(introEl);
+        setTimeout(() => {
+          introEl.textContent = texts[idx];
+          fadeIn(introEl);
+        }, 800);
+      } else {
+        // 3. tıklama: kara ekran + deprem.mp3
+        fadeOut(introEl);
+        overlay.style.pointerEvents = "auto";
+        overlay.style.opacity = 1;
+        depremAudio.play();
+        // Deprem sesi bitince hikayeyi başlat
+        depremAudio.onended = () => {
+          // Intro ve overlay’i gizle
+          introEl.style.display = "none";
+          overlay.style.display = "none";
+          // Hikâye konteyneri göster
+          storyCont.style.pointerEvents = "auto";
+          fadeIn(storyCont, 0);
+          showScene(currentScene);
+        };
+      }
+    });
+
+    // Sahne gösterme
+    function showScene(id) {
+      const scene = scenes[id];
+      const titleEl    = document.getElementById("scene-title");
+      const storyEl    = document.getElementById("story");
+      const choicesEl  = document.getElementById("choices");
+
+      // Başlık
+      if (scene.title) {
+        titleEl.textContent = scene.title;
+        titleEl.style.display = "block";
+      } else {
+        titleEl.style.display = "none";
+      }
+
+      // Metin
+      storyEl.innerHTML = scene.text.replace(/\n/g, "<br>");
+      fadeIn(storyEl, 0);
+      if (scene.sela) {
+      selaAudio.currentTime = 0;
+      selaAudio.play();
+      }
+      // Seçenekler / Bitiş vs.
+      choicesEl.innerHTML = "";
+      if (scene.is_end) {
+        storyEl.innerHTML += "<br><em>\n\nBaşa dönmek için tıklayın.</em><br><small></small>";
+        selaAudio.pause();
+        selaAudio.currentTime = 0;
+        waitingForEndClick = true;
+        return;
+      }
+      scene.choices.forEach(ch => {
+        const btn = document.createElement("button");
+        btn.className = "choice-button";
+        btn.textContent = ch.text;
+        btn.onclick = e => {
+          e.stopPropagation();
+          currentScene = ch.next;
+          sceneCount++;
+          showScene(currentScene);
+        };
+        choicesEl.appendChild(btn);
+      });
+      fadeIn(choicesEl, 200);
+    }
+
+    // Bitiş sahnesinde tıklama
+    storyCont.addEventListener("click", () => {
+      if (waitingForEndClick) {
+        waitingForEndClick = false;
+        // buraya yeniden başlatma veya başka sahne
+        currentScene = "scene1";
+        sceneCount = 0;
+        showScene(currentScene);
+      }
+    });
+  </script>
+</body>
+</html>
